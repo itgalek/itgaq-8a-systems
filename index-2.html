@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Itgaq — 8(a) Pipeline System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper: #F2F3EF;
+    --paper-raised: #FFFFFF;
+    --ink: #1B2420;
+    --ink-soft: #55625A;
+    --line: #D7D9D0;
+    --teal: #2F7A72;
+    --teal-soft: #E4EFEC;
+    --amber: #B8862F;
+    --amber-soft: #F6EDDB;
+    --clay: #A64B36;
+    --clay-soft: #F3E4DE;
+    --radius: 3px;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{ max-width:720px; margin:0 auto; padding:20px 16px 60px; }
+  header.masthead{
+    border-bottom:2px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:18px;
+  }
+  .mark{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .mark h1{ font-family:'Source Serif 4', serif; font-weight:700; font-size:1.7rem; margin:0; letter-spacing:-0.01em; }
+  .mark .id{ font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--ink-soft); white-space:nowrap; }
+  .tagline{ font-size:0.92rem; color:var(--ink-soft); margin-top:4px; line-height:1.4; max-width:52ch; }
+  .account-bar{ display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:var(--ink-soft); margin-top:10px; }
+  .account-bar button{ background:none; border:none; color:var(--teal); font-size:0.8rem; cursor:pointer; padding:0; font-weight:500; }
+
+  nav.tabs{ display:flex; gap:2px; overflow-x:auto; margin-bottom:20px; border-bottom:1px solid var(--line); }
+  nav.tabs button{ font-family:'IBM Plex Sans', sans-serif; font-size:0.85rem; font-weight:500; background:none; border:none; padding:10px 14px 12px; color:var(--ink-soft); cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  nav.tabs button.active{ color:var(--ink); border-bottom:2px solid var(--teal); }
+
+  section.panel{ display:none; }
+  section.panel.active{ display:block; }
+
+  h2.panel-title{ font-family:'Source Serif 4', serif; font-size:1.25rem; font-weight:600; margin:0 0 4px; }
+  p.panel-sub{ color:var(--ink-soft); font-size:0.86rem; margin:0 0 18px; line-height:1.45; }
+
+  .card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; }
+  .card h3{ font-size:1rem; margin:0 0 6px; font-weight:600; }
+  .card .meta{ font-size:0.78rem; color:var(--ink-soft); display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .badge{ display:inline-block; font-size:0.72rem; font-weight:500; padding:2px 8px; border-radius:12px; }
+  .badge.eligible{ background:var(--teal-soft); color:var(--teal); }
+  .badge.pending{ background:var(--amber-soft); color:var(--amber); }
+  .badge.blocked{ background:var(--clay-soft); color:var(--clay); }
+  .card .notes{ font-size:0.85rem; color:var(--ink); line-height:1.5; margin-top:6px; }
+  .card .row-actions{ margin-top:10px; display:flex; gap:10px; }
+  .card .row-actions button{ background:none; border:none; padding:0; cursor:pointer; font-size:0.78rem; color:var(--teal); font-weight:500; }
+  .card .row-actions button.danger{ color:var(--clay); }
+
+  .empty{ border:1px dashed var(--line); border-radius:var(--radius); padding:22px 16px; text-align:center; color:var(--ink-soft); font-size:0.88rem; line-height:1.5; }
+
+  form.entry{ background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-top:16px; }
+  form.entry .field{ margin-bottom:12px; }
+  form.entry label{ display:block; font-size:0.78rem; font-weight:500; color:var(--ink-soft); margin-bottom:4px; }
+  form.entry input[type=text], form.entry input[type=email], form.entry input[type=password], form.entry input[type=date], form.entry select, form.entry textarea{
+    width:100%; font-family:'IBM Plex Sans', sans-serif; font-size:0.9rem; padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius); background:var(--paper); color:var(--ink);
+  }
+  form.entry textarea{ min-height:64px; resize:vertical; }
+  .checkgrid{ display:flex; flex-direction:column; gap:8px; }
+  .checkgrid label{ display:flex; align-items:flex-start; gap:8px; font-size:0.85rem; font-weight:400; color:var(--ink); }
+  .checkgrid input{ margin-top:3px; }
+
+  button.primary{ background:var(--ink); color:var(--paper); border:none; font-family:'IBM Plex Sans', sans-serif; font-weight:500; font-size:0.88rem; padding:10px 16px; border-radius:var(--radius); cursor:pointer; }
+  button.primary:disabled{ opacity:0.5; cursor:default; }
+  button.ghost{ background:none; border:1px solid var(--line); color:var(--ink); font-family:'IBM Plex Sans', sans-serif; font-size:0.85rem; padding:9px 15px; border-radius:var(--radius); cursor:pointer; margin-top:16px; }
+
+  select.subselect{ width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius); background:var(--paper-raised); font-family:'IBM Plex Sans', sans-serif; font-size:0.9rem; margin-bottom:14px; }
+
+  .draft-output{ background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-top:16px; font-size:0.88rem; line-height:1.6; white-space:pre-wrap; }
+  .draft-output.loading{ color:var(--ink-soft); font-style:italic; }
+
+  .scorebar{ display:flex; align-items:center; gap:8px; margin:10px 0 4px; font-size:0.78rem; color:var(--ink-soft); }
+  .scorebar .track{ flex:1; height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .scorebar .fill{ height:100%; background:var(--teal); }
+
+  .auth-wrap{ max-width:360px; margin:60px auto; padding:0 16px; }
+  .auth-card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:24px 20px; }
+  .auth-card h2{ font-family:'Source Serif 4', serif; margin:0 0 6px; font-size:1.3rem; }
+  .auth-card p{ color:var(--ink-soft); font-size:0.85rem; margin:0 0 18px; }
+  .auth-toggle{ text-align:center; margin-top:14px; font-size:0.82rem; color:var(--ink-soft); }
+  .auth-toggle button{ background:none; border:none; color:var(--teal); font-weight:500; cursor:pointer; padding:0; font-size:0.82rem; }
+  .auth-error{ color:var(--clay); font-size:0.82rem; margin-top:10px; }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="auth-wrap" id="auth-screen">
+  <header class="masthead" style="border:none; margin-bottom:20px; padding-bottom:0;">
+    <div class="mark"><h1>Itgaq</h1><span class="id">8(a) PIPELINE SYSTEM</span></div>
+  </header>
+  <div class="auth-card">
+    <h2 id="auth-title">Sign in</h2>
+    <p id="auth-sub">Access your subsidiary and opportunity pipeline.</p>
+    <form class="entry" style="padding:0; border:none; margin-top:0;">
+      <div class="field"><label for="auth-email">Email</label><input type="email" id="auth-email"></div>
+      <div class="field"><label for="auth-password">Password</label><input type="password" id="auth-password"></div>
+      <button type="button" class="primary" id="auth-submit" style="width:100%;">Sign in</button>
+      <div class="auth-error hidden" id="auth-error"></div>
+    </form>
+    <div class="auth-toggle">
+      <span id="auth-toggle-text">Need an account?</span>
+      <button id="auth-toggle-btn">Create one</button>
+    </div>
+  </div>
+</div>
+
+<div class="app hidden" id="main-app">
+
+  <header class="masthead">
+    <div class="mark">
+      <h1>Itgaq</h1>
+      <span class="id">8(a) PIPELINE SYSTEM</span>
+    </div>
+    <p class="tagline">Track ANC subsidiary eligibility, screen contract opportunities, and draft capability statements — built for the way 8(a) actually works.</p>
+    <div class="account-bar">
+      <span id="account-email"></span>
+      <button id="sign-out-btn">Sign out</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="portfolio" class="active">Subsidiaries</button>
+    <button data-tab="opportunities">Opportunities</button>
+    <button data-tab="draft">Draft</button>
+  </nav>
+
+  <section class="panel active" id="panel-portfolio">
+    <h2 class="panel-title">Subsidiary portfolio</h2>
+    <p class="panel-sub">Each subsidiary carries its own 8(a) eligibility profile. Add one, then run its criteria — ownership and control, size standard, and the two-in-two-out limit are the three that most often trip up a new subsidiary.</p>
+    <div id="subsidiary-list"></div>
+    <div class="empty" id="subsidiary-empty" style="display:none;">No subsidiaries yet. Add the first one below.</div>
+    <button class="ghost" id="show-sub-form">Add a subsidiary</button>
+    <form class="entry" id="sub-form" style="display:none;">
+      <div class="field"><label for="sub-name">Subsidiary name</label><input type="text" id="sub-name" placeholder="e.g. Nuniwarmiut Services LLC"></div>
+      <div class="field"><label for="sub-naics">Primary NAICS code(s)</label><input type="text" id="sub-naics" placeholder="e.g. 541512, 561210"></div>
+      <div class="field"><label for="sub-owner">Owning ANC</label><input type="text" id="sub-owner" placeholder="e.g. Calista Corporation"></div>
+      <div class="field">
+        <label>Eligibility criteria met so far</label>
+        <div class="checkgrid">
+          <label><input type="checkbox" data-crit="ownership"> Unconditional ANC ownership and control documented</label>
+          <label><input type="checkbox" data-crit="size"> Meets SBA size standard for its primary NAICS code</label>
+          <label><input type="checkbox" data-crit="benefit"> Benefit agreement in place with the ANC</label>
+          <label><input type="checkbox" data-crit="twoinout"> Clear of the two-in-two-out successive subsidiary limit</label>
+          <label><input type="checkbox" data-crit="management"> Management and daily operations plan documented</label>
+        </div>
+      </div>
+      <div class="field"><label for="sub-notes">Notes</label><textarea id="sub-notes" placeholder="Anything worth remembering about this subsidiary's status"></textarea></div>
+      <button type="button" class="primary" id="save-sub">Save subsidiary</button>
+    </form>
+  </section>
+
+  <section class="panel" id="panel-opportunities">
+    <h2 class="panel-title">Opportunity tracker</h2>
+    <p class="panel-sub">Log opportunities as you find them on SAM.gov or agency forecast lists, and match each to the subsidiary best positioned to pursue it.</p>
+    <div id="opportunity-list"></div>
+    <div class="empty" id="opportunity-empty" style="display:none;">No opportunities logged yet.</div>
+    <button class="ghost" id="show-opp-form">Log an opportunity</button>
+    <form class="entry" id="opp-form" style="display:none;">
+      <div class="field"><label for="opp-title">Opportunity title</label><input type="text" id="opp-title" placeholder="e.g. Facilities maintenance, BIA Region X"></div>
+      <div class="field"><label for="opp-agency">Agency</label><input type="text" id="opp-agency" placeholder="e.g. Bureau of Indian Affairs"></div>
+      <div class="field"><label for="opp-naics">NAICS code</label><input type="text" id="opp-naics" placeholder="e.g. 561210"></div>
+      <div class="field">
+        <label for="opp-setaside">Set-aside type</label>
+        <select id="opp-setaside">
+          <option>8(a) sole source</option><option>8(a) competitive</option><option>Small business set-aside</option><option>Full and open</option><option>Unknown / researching</option>
+        </select>
+      </div>
+      <div class="field"><label for="opp-deadline">Response deadline</label><input type="date" id="opp-deadline"></div>
+      <div class="field"><label for="opp-sub">Matched subsidiary</label><select id="opp-sub"><option value="">— none selected —</option></select></div>
+      <div class="field">
+        <label for="opp-status">Status</label>
+        <select id="opp-status"><option>Watching</option><option>Pursuing</option><option>Submitted</option><option>Won</option><option>Lost</option></select>
+      </div>
+      <div class="field"><label for="opp-notes">Notes</label><textarea id="opp-notes" placeholder="Agency contacts, teaming notes, incumbent info"></textarea></div>
+      <button type="button" class="primary" id="save-opp">Save opportunity</button>
+    </form>
+  </section>
+
+  <section class="panel" id="panel-draft">
+    <h2 class="panel-title">Capability statement drafter</h2>
+    <p class="panel-sub">Pick a subsidiary and an opportunity, add what makes this subsidiary the right fit, and get a first-pass draft to work from — not a finished proposal.</p>
+    <label style="font-size:0.78rem; font-weight:500; color:var(--ink-soft); display:block; margin-bottom:4px;">Subsidiary</label>
+    <select class="subselect" id="draft-sub"><option value="">— select a subsidiary —</option></select>
+    <label style="font-size:0.78rem; font-weight:500; color:var(--ink-soft); display:block; margin-bottom:4px;">Opportunity</label>
+    <select class="subselect" id="draft-opp"><option value="">— select an opportunity —</option></select>
+    <div class="field">
+      <label style="font-size:0.78rem; font-weight:500; color:var(--ink-soft);">Key differentiators (past performance, certifications, local presence, staffing)</label>
+      <textarea id="draft-diff" placeholder="e.g. 12 years facilities maintenance in rural Alaska, existing BIA past performance, local hire commitment"></textarea>
+    </div>
+    <button class="primary" id="run-draft">Draft capability statement</button>
+    <div id="draft-out"></div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  // ---- CONFIGURE THESE TWO VALUES FOR YOUR SUPABASE PROJECT ----
+  const SUPABASE_URL = "https://fzhxrzfyriyipuitgcro.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6aHhyemZ5cml5aXB1aXRnY3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMDMyNjUsImV4cCI6MjEwMzc3OTI2NX0.eG-Q227Un2dP4sG6y7h2fiNAes4w3OzCpe8e6HMC4ew";
+  const DRAFT_FUNCTION_URL = SUPABASE_URL + "/functions/v1/draft-capability-statement";
+
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const state = { subsidiaries: [], opportunities: [], session: null };
+
+  const CRIT_LABELS = { ownership:'Ownership & control', size:'Size standard', benefit:'Benefit agreement', twoinout:'Two-in-two-out clear', management:'Management plan' };
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  // ---------- AUTH ----------
+  let isSignUp = false;
+  document.getElementById('auth-toggle-btn').addEventListener('click', ()=>{
+    isSignUp = !isSignUp;
+    document.getElementById('auth-title').textContent = isSignUp ? 'Create an account' : 'Sign in';
+    document.getElementById('auth-sub').textContent = isSignUp ? 'Set up access to your pipeline.' : 'Access your subsidiary and opportunity pipeline.';
+    document.getElementById('auth-submit').textContent = isSignUp ? 'Create account' : 'Sign in';
+    document.getElementById('auth-toggle-text').textContent = isSignUp ? 'Already have an account?' : 'Need an account?';
+    document.getElementById('auth-toggle-btn').textContent = isSignUp ? 'Sign in' : 'Create one';
+    document.getElementById('auth-error').classList.add('hidden');
+  });
+
+  document.getElementById('auth-submit').addEventListener('click', async ()=>{
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errEl = document.getElementById('auth-error');
+    errEl.classList.add('hidden');
+    if(!email || !password){ errEl.textContent = 'Enter an email and password.'; errEl.classList.remove('hidden'); return; }
+    const fn = isSignUp ? sb.auth.signUp : sb.auth.signInWithPassword;
+    const { data, error } = await fn.call(sb.auth, { email, password });
+    if(error){ errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+    if(isSignUp && !data.session){
+      errEl.textContent = 'Account created. Check your email to confirm, then sign in.';
+      errEl.classList.remove('hidden');
+      errEl.style.color = 'var(--teal)';
+      return;
+    }
+    onAuthed(data.session);
+  });
+
+  document.getElementById('sign-out-btn').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
+
+  async function onAuthed(session){
+    state.session = session;
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    document.getElementById('account-email').textContent = session.user.email;
+    await loadAll();
+  }
+
+  sb.auth.getSession().then(({ data })=>{
+    if(data.session){ onAuthed(data.session); }
+  });
+
+  // ---------- data load ----------
+  async function loadAll(){
+    const { data: subs, error: subErr } = await sb.from('subsidiaries').select('*').order('created_at', { ascending:true });
+    state.subsidiaries = subErr ? [] : subs.map(rowToSub);
+    const { data: opps, error: oppErr } = await sb.from('opportunities').select('*').order('created_at', { ascending:true });
+    state.opportunities = oppErr ? [] : opps.map(rowToOpp);
+    renderSubsidiaries(); renderOpportunities(); populateSelects();
+  }
+  function rowToSub(r){ return { id:r.id, name:r.name, naics:r.naics, owner:r.owner, notes:r.notes, criteria:r.criteria||{} }; }
+  function rowToOpp(r){ return { id:r.id, title:r.title, agency:r.agency, naics:r.naics, setaside:r.setaside, deadline:r.deadline, subId:r.sub_id, status:r.status, notes:r.notes }; }
+
+  // ---------- tabs ----------
+  document.querySelectorAll('nav.tabs button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('section.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function critScore(sub){
+    const keys = Object.keys(CRIT_LABELS);
+    const met = keys.filter(k=>sub.criteria && sub.criteria[k]).length;
+    return { met, total: keys.length };
+  }
+
+  function renderSubsidiaries(){
+    const list = document.getElementById('subsidiary-list');
+    const empty = document.getElementById('subsidiary-empty');
+    list.innerHTML = '';
+    if(state.subsidiaries.length===0){ empty.style.display='block'; return; }
+    empty.style.display='none';
+    state.subsidiaries.forEach(sub=>{
+      const {met,total} = critScore(sub);
+      const pct = Math.round((met/total)*100);
+      const status = met===total ? 'eligible' : (met===0 ? 'blocked' : 'pending');
+      const statusLabel = met===total ? 'Criteria complete' : (met===0 ? 'Not started' : met+' of '+total+' met');
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>${escapeHtml(sub.name)}</h3>
+        <div class="meta">
+          <span class="badge ${status}">${statusLabel}</span>
+          <span>NAICS ${escapeHtml(sub.naics||'—')}</span>
+          <span>${escapeHtml(sub.owner||'Owner not set')}</span>
+        </div>
+        <div class="scorebar"><div class="track"><div class="fill" style="width:${pct}%;"></div></div><span>${pct}%</span></div>
+        ${sub.notes ? `<div class="notes">${escapeHtml(sub.notes)}</div>` : ''}
+        <div class="row-actions"><button data-action="delete-sub" data-id="${sub.id}" class="danger">Remove</button></div>
+      `;
+      list.appendChild(card);
+    });
+    list.querySelectorAll('[data-action="delete-sub"]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        await sb.from('subsidiaries').delete().eq('id', b.dataset.id);
+        await loadAll();
+      });
+    });
+  }
+
+  document.getElementById('show-sub-form').addEventListener('click', ()=>{ document.getElementById('sub-form').style.display='block'; });
+  document.getElementById('save-sub').addEventListener('click', async ()=>{
+    const name = document.getElementById('sub-name').value.trim();
+    if(!name) return;
+    const naics = document.getElementById('sub-naics').value.trim();
+    const owner = document.getElementById('sub-owner').value.trim();
+    const notes = document.getElementById('sub-notes').value.trim();
+    const criteria = {};
+    document.querySelectorAll('#sub-form [data-crit]').forEach(cb=>{ criteria[cb.dataset.crit]=cb.checked; });
+    await sb.from('subsidiaries').insert({ user_id: state.session.user.id, name, naics, owner, notes, criteria });
+    document.getElementById('sub-name').value=''; document.getElementById('sub-naics').value=''; document.getElementById('sub-owner').value=''; document.getElementById('sub-notes').value='';
+    document.querySelectorAll('#sub-form [data-crit]').forEach(cb=>cb.checked=false);
+    document.getElementById('sub-form').style.display='none';
+    await loadAll();
+  });
+
+  function renderOpportunities(){
+    const list = document.getElementById('opportunity-list');
+    const empty = document.getElementById('opportunity-empty');
+    list.innerHTML = '';
+    if(state.opportunities.length===0){ empty.style.display='block'; return; }
+    empty.style.display='none';
+    state.opportunities.forEach(opp=>{
+      const sub = state.subsidiaries.find(s=>s.id===opp.subId);
+      const statusClass = opp.status==='Won' ? 'eligible' : (opp.status==='Lost' ? 'blocked' : 'pending');
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>${escapeHtml(opp.title)}</h3>
+        <div class="meta">
+          <span class="badge ${statusClass}">${escapeHtml(opp.status)}</span>
+          <span>${escapeHtml(opp.agency||'Agency not set')}</span>
+          <span>NAICS ${escapeHtml(opp.naics||'—')}</span>
+          <span>${escapeHtml(opp.setaside||'')}</span>
+          ${opp.deadline ? `<span>Due ${escapeHtml(opp.deadline)}</span>` : ''}
+        </div>
+        ${sub ? `<div class="notes">Matched to ${escapeHtml(sub.name)}</div>` : ''}
+        ${opp.notes ? `<div class="notes">${escapeHtml(opp.notes)}</div>` : ''}
+        <div class="row-actions"><button data-action="delete-opp" data-id="${opp.id}" class="danger">Remove</button></div>
+      `;
+      list.appendChild(card);
+    });
+    list.querySelectorAll('[data-action="delete-opp"]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        await sb.from('opportunities').delete().eq('id', b.dataset.id);
+        await loadAll();
+      });
+    });
+  }
+
+  document.getElementById('show-opp-form').addEventListener('click', ()=>{ document.getElementById('opp-form').style.display='block'; });
+  document.getElementById('save-opp').addEventListener('click', async ()=>{
+    const title = document.getElementById('opp-title').value.trim();
+    if(!title) return;
+    const agency = document.getElementById('opp-agency').value.trim();
+    const naics = document.getElementById('opp-naics').value.trim();
+    const setaside = document.getElementById('opp-setaside').value;
+    const deadline = document.getElementById('opp-deadline').value || null;
+    const subId = document.getElementById('opp-sub').value || null;
+    const status = document.getElementById('opp-status').value;
+    const notes = document.getElementById('opp-notes').value.trim();
+    await sb.from('opportunities').insert({ user_id: state.session.user.id, title, agency, naics, setaside, deadline, sub_id: subId, status, notes });
+    ['opp-title','opp-agency','opp-naics','opp-deadline','opp-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('opp-form').style.display='none';
+    await loadAll();
+  });
+
+  function populateSelects(){
+    const targets = [document.getElementById('opp-sub'), document.getElementById('draft-sub')];
+    targets.forEach(sel=>{
+      const keep = sel.value;
+      sel.innerHTML = sel.id==='draft-sub' ? '<option value="">— select a subsidiary —</option>' : '<option value="">— none selected —</option>';
+      state.subsidiaries.forEach(s=>{
+        const opt = document.createElement('option'); opt.value = s.id; opt.textContent = s.name; sel.appendChild(opt);
+      });
+      sel.value = keep;
+    });
+    const draftOpp = document.getElementById('draft-opp');
+    const keepOpp = draftOpp.value;
+    draftOpp.innerHTML = '<option value="">— select an opportunity —</option>';
+    state.opportunities.forEach(o=>{
+      const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.title; draftOpp.appendChild(opt);
+    });
+    draftOpp.value = keepOpp;
+  }
+
+  document.getElementById('run-draft').addEventListener('click', async ()=>{
+    const subId = document.getElementById('draft-sub').value;
+    const oppId = document.getElementById('draft-opp').value;
+    const diff = document.getElementById('draft-diff').value.trim();
+    const out = document.getElementById('draft-out');
+    const sub = state.subsidiaries.find(s=>s.id===subId);
+    const opp = state.opportunities.find(o=>o.id===oppId);
+    if(!sub || !opp){ out.innerHTML = '<div class="draft-output">Select a subsidiary and an opportunity first.</div>'; return; }
+    out.innerHTML = '<div class="draft-output loading">Drafting…</div>';
+    const btn = document.getElementById('run-draft');
+    btn.disabled = true;
+    try {
+      const res = await fetch(DRAFT_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + state.session.access_token,
+        },
+        body: JSON.stringify({ subsidiary: sub, opportunity: opp, differentiators: diff })
+      });
+      const data = await res.json();
+      if(!res.ok){
+        out.innerHTML = `<div class="draft-output">${escapeHtml(data.error || 'Something went wrong generating the draft.')}</div>`;
+      } else {
+        out.innerHTML = `<div class="draft-output">${escapeHtml(data.draft || 'No draft returned — try again.')}</div>`;
+      }
+    } catch(e){
+      out.innerHTML = '<div class="draft-output">Could not reach the drafting service. Try again.</div>';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
